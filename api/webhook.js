@@ -1,20 +1,12 @@
-export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).send("Method Not Allowed");
+export default function handler(req, res) {
+  if (req.method === "GET") {
+    return res.status(200).send("Webhook is live ✅");
   }
 
-  const order = req.body;
+  if (req.method === "POST") {
+    console.log("🔥 Order Received:", req.body);
+    return res.status(200).json({ success: true });
+  }
 
-  console.log("🔥 Order Received:", order);
-
-  // Example: prepare data
-  const conversionData = {
-    value: order.current_total_price,
-    currency: order.currency,
-    orderId: order.id
-  };
-
-  console.log("✅ Processed Data:", conversionData);
-
-  return res.status(200).json({ success: true });
+  return res.status(405).send("Method Not Allowed");
 }
