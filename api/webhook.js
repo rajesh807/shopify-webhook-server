@@ -1,17 +1,20 @@
-export const config = {
-  api: {
-    bodyParser: true
-  }
-};
-
-export default function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method === "POST") {
-    const order = req.body;
+    let body = "";
 
-    console.log("🔥 Order Received:", order);
+    await new Promise((resolve) => {
+      req.on("data", chunk => {
+        body += chunk.toString();
+      });
+      req.on("end", resolve);
+    });
 
-    res.status(200).json({ success: true });
-  } else {
-    res.status(405).json({ message: "Method not allowed" });
+    const data = JSON.parse(body);
+
+    console.log("🔥 Order Received:", data);
+
+    return res.status(200).json({ success: true });
   }
+
+  return res.status(405).json({ message: "Method not allowed" });
 }
