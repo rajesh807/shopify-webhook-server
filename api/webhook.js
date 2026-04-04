@@ -1,20 +1,20 @@
 export default async function handler(req, res) {
-  if (req.method === "POST") {
-    let body = "";
-
-    await new Promise((resolve) => {
-      req.on("data", chunk => {
-        body += chunk.toString();
-      });
-      req.on("end", resolve);
-    });
-
-    const data = JSON.parse(body);
-
-    console.log("🔥 Order Received:", data);
-
-    return res.status(200).json({ success: true });
+  if (req.method !== "POST") {
+    return res.status(405).send("Method Not Allowed");
   }
 
-  return res.status(405).json({ message: "Method not allowed" });
+  const order = req.body;
+
+  console.log("🔥 Order Received:", order);
+
+  // Example: prepare data
+  const conversionData = {
+    value: order.current_total_price,
+    currency: order.currency,
+    orderId: order.id
+  };
+
+  console.log("✅ Processed Data:", conversionData);
+
+  return res.status(200).json({ success: true });
 }
