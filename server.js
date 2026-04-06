@@ -4,14 +4,13 @@ import fetch from "node-fetch";
 const app = express();
 app.use(express.json());
 
-// 🔐 GOOGLE ADS CONFIG (from Railway Variables)
+// 🔐 GOOGLE ADS CONFIG (FROM RAILWAY VARIABLES)
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const REFRESH_TOKEN = process.env.REFRESH_TOKEN;
 const DEVELOPER_TOKEN = process.env.DEVELOPER_TOKEN;
 
-// Static values
-const CUSTOMER_ID = "7027262809"; // no dashes
+const CUSTOMER_ID = "7027262809";
 const CONVERSION_ID = "17552421490";
 
 // 🔁 Get Access Token
@@ -35,10 +34,10 @@ async function getAccessToken() {
 app.post("/webhook/order", async (req, res) => {
   const order = req.body;
 
-  console.log("🔥 Order Received");
+  console.log("🔥 Order Received:", order);
 
-  // 🔍 Extract GCLID
   let gclid = null;
+
   if (order.note_attributes) {
     const gclidAttr = order.note_attributes.find(
       (attr) => attr.name === "gclid"
