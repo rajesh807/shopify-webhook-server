@@ -1,37 +1,98 @@
 import express from "express";
+import fetch from "node-fetch";
 
 const app = express();
 app.use(express.json());
 
-app.post("/webhook/order", (req, res) => {
+// 🔐 GOOGLE ADS CONFIG (from Railway Variables)
+const CLIENT_ID = process.env.CLIENT_ID;
+const CLIENT_SECRET = process.env.CLIENT_SECRET;
+const REFRESH_TOKEN = process.env.REFRESH_TOKEN;
+const DEVELOPER_TOKEN = process.env.DEVELOPER_TOKEN;
+
+// Static values
+const CUSTOMER_ID = "7027262809"; // no dashes
+const CONVERSION_ID = "17552421490";
+
+// 🔁 Get Access Token
+async function getAccessToken() {
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: CLIENT_ID,
+      client_secret: CLIENT_SECRET,
+      refresh_token: REFRESH_TOKEN,
+      grant_type: "refresh_token",
+    }),
+  });
+
+  const data = await res.json();
+  return data.access_token;
+}
+
+// 📩 Shopify Webhook
+app.post("/webhook/order", async (req, res) => {
   const order = req.body;
 
-  // 🔥 Extract GCLID
-  let gclid = null;
+  console.log("🔥 Order Received");
 
+  // 🔍 Extract GCLID
+  let gclid = null;
   if (order.note_attributes) {
     const gclidAttr = order.note_attributes.find(
-      attr => attr.name === "gclid"
+      (attr) => attr.name === "gclid"
     );
-    if (gclidAttr) {
-      gclid = gclidAttr.value;
-    }
+    if (gclidAttr) gclid = gclidAttr.value;
   }
 
   console.log("🎯 GCLID:", gclid);
 
-  // 🔥 Extract Conversion Value
-  const conversionValue = parseFloat(order.current_total_price || 0);
-  const currency = order.currency;
+  if (!gclid) {
+    console.log("❌ No GCLID found");
+    return res.status(200).send("No GCLID");
+  }
 
-  console.log("💰 Conversion Value:", conversionValue);
-  console.log("💱 Currency:", currency);
+  try {
+    const accessToken = await getAccessToken();
 
-  console.log("🔥 Order Received:", order);
+    const conversionData = {
+      conversions: [
+        {
+          gclid: gclid,
+          conversionAction: `customers/${CUSTOMER_ID}/conversionActions/${CONVERSION_ID}`,
+          conversionDateTime: new Date().toISOString(),
+          conversionValue: parseFloat(order.total_price || 0),
+          currencyCode: order.currency || "INR",
+        },
+      ],
+      partialFailure: true,
+    };
+
+    const response = await fetch(
+      `https://googleads.googleapis.com/v14/customers/${CUSTOMER_ID}:uploadClickConversions`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "developer-token": DEVELOPER_TOKEN,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(conversionData),
+      }
+    );
+
+    const result = await response.json();
+
+    console.log("✅ Google Ads Response:", result);
+  } catch (error) {
+    console.error("❌ Error sending conversion:", error);
+  }
 
   res.status(200).send("OK");
 });
 
+// Health check
 app.get("/", (req, res) => {
   res.send("Server is running ✅");
 });
