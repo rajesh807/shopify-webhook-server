@@ -1,10 +1,9 @@
 import express from "express";
-import fetch from "node-fetch";
 
 const app = express();
 app.use(express.json());
 
-// 🔐 GOOGLE ADS CONFIG (FROM RAILWAY VARIABLES)
+// 🔐 GOOGLE ADS CONFIG
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const REFRESH_TOKEN = process.env.REFRESH_TOKEN;
@@ -48,7 +47,6 @@ app.post("/webhook/order", async (req, res) => {
   console.log("🎯 GCLID:", gclid);
 
   if (!gclid) {
-    console.log("❌ No GCLID found");
     return res.status(200).send("No GCLID");
   }
 
@@ -82,10 +80,10 @@ app.post("/webhook/order", async (req, res) => {
     );
 
     const result = await response.json();
-
     console.log("✅ Google Ads Response:", result);
+
   } catch (error) {
-    console.error("❌ Error sending conversion:", error);
+    console.error("❌ Error:", error);
   }
 
   res.status(200).send("OK");
