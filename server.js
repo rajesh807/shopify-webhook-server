@@ -3,13 +3,15 @@ import express from "express";
 const app = express();
 app.use(express.json());
 
-// 🔐 GOOGLE ADS CONFIG
+// 🔐 GOOGLE ADS CONFIG (FROM ENV)
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const REFRESH_TOKEN = process.env.REFRESH_TOKEN;
 const DEVELOPER_TOKEN = process.env.DEVELOPER_TOKEN;
 
-const CUSTOMER_ID = "7027262809";
+// ✅ IDs
+const CUSTOMER_ID = "7027262809"; // Client Account
+const MCC_ID = "4057780258"; // MCC Account
 const CONVERSION_ID = "17552421490";
 
 // 🔁 Get Access Token
@@ -26,6 +28,12 @@ async function getAccessToken() {
   });
 
   const data = await res.json();
+
+  if (!data.access_token) {
+    console.error("❌ Failed to get access token:", data);
+    throw new Error("Access token error");
+  }
+
   return data.access_token;
 }
 
@@ -33,7 +41,7 @@ async function getAccessToken() {
 app.post("/webhook/order", async (req, res) => {
   const order = req.body;
 
-  console.log("🔥 Order Received:", order);
+  console.log("🔥 Order Received");
 
   let gclid = null;
 
@@ -47,6 +55,7 @@ app.post("/webhook/order", async (req, res) => {
   console.log("🎯 GCLID:", gclid);
 
   if (!gclid) {
+    console.log("❌ No GCLID found");
     return res.status(200).send("No GCLID");
   }
 
@@ -66,6 +75,8 @@ app.post("/webhook/order", async (req, res) => {
       partialFailure: true,
     };
 
+    console.log("📤 Sending to Google Ads:", conversionData);
+
     const response = await fetch(
       `https://googleads.googleapis.com/v14/customers/${CUSTOMER_ID}:uploadClickConversions`,
       {
@@ -73,17 +84,25 @@ app.post("/webhook/order", async (req, res) => {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           "developer-token": DEVELOPER_TOKEN,
+          "login-customer-id": MCC_ID, // ✅ FIXED (VERY IMPORTANT)
           "Content-Type": "application/json",
         },
         body: JSON.stringify(conversionData),
       }
     );
 
-    const result = await response.json();
-    console.log("✅ Google Ads Response:", result);
+    // 🔥 FIX: handle non-JSON response
+    const text = await response.text();
+
+    try {
+      const result = JSON.parse(text);
+      console.log("✅ Google Ads Response:", result);
+    } catch (e) {
+      console.error("❌ Non-JSON Response:", text);
+    }
 
   } catch (error) {
-    console.error("❌ Error:", error);
+    console.error("❌ Error sending conversion:", error);
   }
 
   res.status(200).send("OK");
